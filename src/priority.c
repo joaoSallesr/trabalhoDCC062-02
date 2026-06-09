@@ -46,24 +46,25 @@ static bool check_tasks(void)
 
 static int pick_task(void)
 {
-    bool unblock_tasks = false;
 
     for (int p = 1; p <= PRIORITY_MAX; p++)
     {
+        bool unblock_tasks = false;
+
         // Go through every task with priority 'p'
         for (int i = 0; i < PRIORITY_TASKS; i++)
         {
             if (priority_task_g[i].status == READY && priority_task_g[i].priority == p)
             {
-                priority_task_g[i].status = BLOCKED;
+                priority_task_g[i].status = PREEMPTED;
                 return i;
             }
         }
 
-        // If it can't find a READY task with priority 'p' checks for BLOCKED tasks
+        // If it can't find a READY task with priority 'p' checks for PREEMPTED tasks
         for (int i = 0; i < PRIORITY_TASKS; i++)
         {
-            if (priority_task_g[i].status == BLOCKED && priority_task_g[i].priority == p)
+            if (priority_task_g[i].status == PREEMPTED && priority_task_g[i].priority == p)
             {
                 unblock_tasks = true;
                 break;
@@ -75,7 +76,7 @@ static int pick_task(void)
         {
             for (int i = 0; i < PRIORITY_TASKS; i++)
             {
-                if (priority_task_g[i].status == BLOCKED && priority_task_g[i].priority == p)
+                if (priority_task_g[i].status == PREEMPTED && priority_task_g[i].priority == p)
                     priority_task_g[i].status = READY;
             }
 
@@ -83,7 +84,7 @@ static int pick_task(void)
             {
                 if (priority_task_g[i].status == READY && priority_task_g[i].priority == p)
                 {
-                    priority_task_g[i].status = BLOCKED;
+                    priority_task_g[i].status = PREEMPTED;
                     return i;
                 }
             }
@@ -95,19 +96,17 @@ static int pick_task(void)
 
 static void run_task(int task_id)
 {
-    if (priority_task_g[task_id].remaining_ticks < QUANTUM_TICK)
+    if (priority_task_g[task_id].remaining_ticks <= QUANTUM_TICK)
     {
-        priority_task_g[task_id].finished_tick = current_tick;
-        priority_task_g[task_id].remaining_ticks = 0;
-        priority_task_g[task_id].status = FINISHED;
-
         wait_ticks(priority_task_g[task_id].remaining_ticks);
+        priority_task_g[task_id].status = FINISHED;
+        priority_task_g[task_id].remaining_ticks = 0;
+        priority_task_g[task_id].finished_tick = current_tick;
     }
     else
     {
-        priority_task_g[task_id].remaining_ticks -= QUANTUM_TICK;
-
         wait_ticks(QUANTUM_TICK);
+        priority_task_g[task_id].remaining_ticks -= QUANTUM_TICK;
     }
 }
 
@@ -143,15 +142,31 @@ void priority_tasks()
 
 void priority_log()
 {
-    printf("========== PRIORITY SCHEDULER ==========\n\r");
+    float avg_turnaround = 0;
+    float avg_wait = 0;
+
+    printf("=================== PRIORITY SCHEDULER ===================\n");
+    printf(" ID  | PRIO | ARRIVAL | BURST | FINISH | TURNAROUND | WAIT\n");
+    printf("-----|------|---------|-------|--------|------------|-----\n");
+
     for (int i = 0; i < PRIORITY_TASKS; i++)
     {
-        printf("Task [%d] ==========\n\r", i);
-        printf("- Task priority: %d\n\r", priority_task_g[i].priority);
-        printf("- Task arrival time   : %d\n\r", priority_task_g[i].arrival_tick);
-        printf("- Task burst time     : %d ticks\n\r", priority_task_g[i].burst_ticks);
-        printf("- Task finish time    : %d\n\r", priority_task_g[i].finished_tick);
-        printf("- Task turnaround time: %d\n\r", priority_task_g[i].finished_tick - priority_task_g[i].arrival_tick);
-        printf("- Task wait time      : %d ticks\n\r", priority_task_g[i].finished_tick - priority_task_g[i].arrival_tick - priority_task_g[i].burst_ticks);
+        priority_task_t *t = &priority_task_g[i];
+        printf(" %3d | %4d | %7d | %5d | %6d | %10d | %4d\n",
+               t->id,
+               t->priority,
+               t->arrival_tick,
+               t->burst_ticks,
+               t->finished_tick,
+               t->finished_tick - t->arrival_tick,
+               t->finished_tick - t->arrival_tick - t->burst_ticks);
+
+        avg_turnaround += t->finished_tick - t->arrival_tick;
+        avg_wait += t->finished_tick - t->arrival_tick - t->burst_ticks;
     }
+
+    printf("-----|------|---------|-------|--------|------------|-----\n");
+    printf(" AVG |      |         |       |        | %10.1f | %4.1f\n",
+           avg_turnaround / PRIORITY_TASKS,
+           avg_wait / PRIORITY_TASKS);
 }

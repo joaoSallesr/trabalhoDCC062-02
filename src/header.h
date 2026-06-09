@@ -23,7 +23,7 @@ typedef enum
 {
     NEW,
     READY,
-    BLOCKED,
+    PREEMPTED,
     FINISHED,
 } task_status_t;
 
