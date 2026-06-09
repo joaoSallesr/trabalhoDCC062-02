@@ -1,9 +1,13 @@
 #include "header.h"
 
-void create_tasks() {}
+static void create_tasks(void) {}
 
-void check_tasks() {}
+static void check_tasks(void) {}
 
-void choose_task() {}
+static void pick_task(void) {}
 
-void run_task(int task_id) {}
+static void run_task(int task_id) {}
+
+void lottery_tasks() {}
+
+void lottery_log() {}

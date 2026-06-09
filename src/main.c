@@ -5,11 +5,14 @@ priority_task_t *priority_task_g = NULL;
 
 int main(void)
 {
-    srand((unsigned int)time(NULL));
+    srand(1234);
 
     lottery_task_g = malloc(LOTTERY_TASKS * sizeof(lottery_task_t));
     priority_task_g = malloc(PRIORITY_TASKS * sizeof(priority_task_t));
 
-    usleep(10 * TICK_TO_US);
+    priority_tasks();
+
+    priority_log();
+
     return 0;
 }

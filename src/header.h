@@ -6,11 +6,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define TICK_TO_US 1000000
 
-#define LOTTERY_TASKS 100
-#define PRIORITY_TASKS 100
+#define LOTTERY_TASKS 10
+#define PRIORITY_TASKS 10
 #define QUANTUM_TICK 2
 
 #define TICKET_MAX 100
@@ -18,32 +19,41 @@
 #define ARRIVAL_MAX 60
 #define BURST_MAX 20
 
-extern lottery_task_t *lottery_task_g;
-extern priority_task_t *priority_task_g;
-
 typedef enum
 {
     NEW,
     READY,
+    BLOCKED,
     FINISHED,
 } task_status_t;
 
 typedef struct
 {
-    int id;
-    int tickets;
-    int arrival_time;
-    int burst_time;
-    int remaining_time;
+    uint16_t id;
+    uint16_t tickets;
+    uint16_t arrival_tick;
+    uint16_t finished_tick;
+    uint16_t burst_ticks;
+    uint16_t remaining_ticks;
     task_status_t status;
 } lottery_task_t;
 
 typedef struct
 {
-    int id;
-    int priority; // 1:low / 10:high
-    int arrival_time;
-    int burst_time;
-    int remaining_time;
+    uint16_t id;
+    uint16_t priority; // 1 = HIGH :: 10 = LOW
+    uint16_t arrival_tick;
+    uint16_t finished_tick;
+    uint16_t burst_ticks;
+    uint16_t remaining_ticks;
     task_status_t status;
 } priority_task_t;
+
+extern lottery_task_t *lottery_task_g;
+extern priority_task_t *priority_task_g;
+
+extern void lottery_tasks();
+extern void priority_tasks();
+
+extern void lottery_log();
+extern void priority_log();

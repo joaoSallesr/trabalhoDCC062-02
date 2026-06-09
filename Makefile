@@ -1,10 +1,11 @@
 CC = gcc
 FLAGS = -Wall -pedantic -lpthread
+SOURCES = src/main.c src/priority.c src/lottery.c
 
 all: main
 
 main:
-	$(CC) src/main.c -o main $(FLAGS)
+	$(CC) $(SOURCES) -o main $(FLAGS)
 
 clean:
 	find . -type f -executable -not -name "*.c" -not -name "Makefile" -delete
