@@ -28,14 +28,39 @@ static void create_tasks(void)
 static bool check_tasks(void)
 {
     uint16_t finished_tasks = 0;
+    uint16_t arrived_tasks[PRIORITY_TASKS];
+    uint16_t arrived_count = 0;
 
     for (int i = 0; i < PRIORITY_TASKS; i++)
     {
         if (priority_task_g[i].status == NEW && priority_task_g[i].arrival_tick <= current_tick)
+        {
             priority_task_g[i].status = READY;
+            arrived_tasks[arrived_count++] = i;
+        }
 
         if (priority_task_g[i].status == FINISHED)
             finished_tasks++;
+    }
+
+    for (int a = 0; a < arrived_count - 1; a++)
+    {
+        for (int b = a + 1; b < arrived_count; b++)
+        {
+            if (priority_task_g[arrived_tasks[b]].arrival_tick < priority_task_g[arrived_tasks[a]].arrival_tick)
+            {
+                int tmp = arrived_tasks[a];
+                arrived_tasks[a] = arrived_tasks[b];
+                arrived_tasks[b] = tmp;
+            }
+        }
+    }
+
+    for (int a = 0; a < arrived_count; a++)
+    {
+        priority_task_t *t = &priority_task_g[arrived_tasks[a]];
+        log_printf("[TICK %02u]: task %d (%d*) chegou [%d ticks]\n",
+                   t->arrival_tick, t->id, t->priority, t->burst_ticks);
     }
 
     if (finished_tasks == PRIORITY_TASKS)
@@ -44,8 +69,9 @@ static bool check_tasks(void)
     return true;
 }
 
-static int pick_task(void)
+static int pick_task(bool *was_unblocked)
 {
+    *was_unblocked = false;
 
     for (int p = 1; p <= PRIORITY_MAX; p++)
     {
@@ -85,6 +111,7 @@ static int pick_task(void)
                 if (priority_task_g[i].status == READY && priority_task_g[i].priority == p)
                 {
                     priority_task_g[i].status = PREEMPTED;
+                    *was_unblocked = true;
                     return i;
                 }
             }
@@ -96,38 +123,98 @@ static int pick_task(void)
 
 static void run_task(int task_id)
 {
-    if (priority_task_g[task_id].remaining_ticks <= QUANTUM_TICK)
+    priority_task_t *t = &priority_task_g[task_id];
+
+    if (t->remaining_ticks <= QUANTUM_TICK)
     {
-        wait_ticks(priority_task_g[task_id].remaining_ticks);
-        priority_task_g[task_id].status = FINISHED;
-        priority_task_g[task_id].remaining_ticks = 0;
-        priority_task_g[task_id].finished_tick = current_tick;
+        wait_ticks(t->remaining_ticks);
+        t->status = FINISHED;
+        t->remaining_ticks = 0;
+        t->finished_tick = current_tick;
+
+        int turnaround = t->finished_tick - t->arrival_tick;
+        int wait = turnaround - t->burst_ticks;
+
+        log_printf("[TICK %02u]: task %d (%d*) finalizou apos %d ticks -> %d [TAT], %d [WT]\n",
+                   current_tick, t->id, t->priority, t->burst_ticks, turnaround, wait);
     }
     else
     {
         wait_ticks(QUANTUM_TICK);
-        priority_task_g[task_id].remaining_ticks -= QUANTUM_TICK;
+        t->remaining_ticks -= QUANTUM_TICK;
+    }
+}
+
+static void log_tick(int task_id, int last_task_id, bool last_task_finished, bool was_unblocked)
+{
+    priority_task_t *t = &priority_task_g[task_id];
+
+    if (task_id == last_task_id)
+    {
+        // log_printf("[TICK %02u]: task %d (%d*) rodando [%d ticks restantes]\n", current_tick, t->id, t->priority, t->remaining_ticks);
+        return;
+    }
+
+    if (last_task_id != -1 && !last_task_finished)
+    {
+        priority_task_t *prev = &priority_task_g[last_task_id];
+
+        if (prev->priority == t->priority)
+            log_printf("[TICK %02u]: escalonador substituiu task %d (%d*) [%d ticks restantes] por task %d (%d*) [%d ticks restantes] - [prioridades iguais]\n",
+                       current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
+        else if (prev->priority > t->priority)
+            log_printf("[TICK %02u]: escalonador substituiu task %d (%d*) [%d ticks restantes] por task %d (%d*) [%d ticks restantes]\n",
+                       current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
+
+        return;
+    }
+
+    if (last_task_id == -1)
+    {
+        log_printf("[TICK %02u]: escalonador iniciou task %d (%d*) [%d ticks restantes]\n",
+                   current_tick, t->id, t->priority, t->remaining_ticks);
+    }
+    else if (was_unblocked)
+    {
+        log_printf("[TICK %02u]: task %d (%d*) retornou [%d ticks restantes]\n",
+                   current_tick, t->id, t->priority, t->remaining_ticks);
+    }
+    else
+    {
+        log_printf("[TICK %02u]: escalonador selecionou task %d (%d*) [%d ticks restantes]\n",
+                   current_tick, t->id, t->priority, t->remaining_ticks);
     }
 }
 
 void priority_tasks()
 {
     int task_id;
+    int last_task_id = -1;
+    bool last_task_finished = false;
+
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    log_fp = fopen("log.txt", "w");
+    if (log_fp == NULL)
+        perror("fopen log.txt");
 
     // Create all tasks with random parameters
     create_tasks();
+
+    log_printf("Running simulation:\n");
 
     while (true)
     {
         // Check for new runnable tasks
         if (!check_tasks())
         {
-            printf("All priority tasks finished!\n\r");
+            log_printf("\nAll priority tasks finished!\n\r");
             break;
         }
 
         // Find a READY task with the highest priority possible
-        task_id = pick_task();
+        bool was_unblocked = false;
+        task_id = pick_task(&was_unblocked);
         if (task_id == -1)
         {
             // Wait until next tick
@@ -135,8 +222,13 @@ void priority_tasks()
             continue;
         }
 
+        log_tick(task_id, last_task_id, last_task_finished, was_unblocked);
+
         // Run selected task
         run_task(task_id);
+
+        last_task_finished = (priority_task_g[task_id].status == FINISHED);
+        last_task_id = task_id;
     }
 }
 
@@ -145,28 +237,28 @@ void priority_log()
     float avg_turnaround = 0;
     float avg_wait = 0;
 
-    printf("=================== PRIORITY SCHEDULER ===================\n");
-    printf(" ID  | PRIO | ARRIVAL | BURST | FINISH | TURNAROUND | WAIT\n");
-    printf("-----|------|---------|-------|--------|------------|-----\n");
+    log_printf("=================== PRIORITY SCHEDULER ===================\n");
+    log_printf(" ID  | PRIO | ARRIVAL | BURST | FINISH | TURNAROUND | WAIT\n");
+    log_printf("-----|------|---------|-------|--------|------------|-----\n");
 
     for (int i = 0; i < PRIORITY_TASKS; i++)
     {
         priority_task_t *t = &priority_task_g[i];
-        printf(" %3d | %4d | %7d | %5d | %6d | %10d | %4d\n",
-               t->id,
-               t->priority,
-               t->arrival_tick,
-               t->burst_ticks,
-               t->finished_tick,
-               t->finished_tick - t->arrival_tick,
-               t->finished_tick - t->arrival_tick - t->burst_ticks);
+        log_printf(" %3d | %4d | %7d | %5d | %6d | %10d | %4d\n",
+                   t->id,
+                   t->priority,
+                   t->arrival_tick,
+                   t->burst_ticks,
+                   t->finished_tick,
+                   t->finished_tick - t->arrival_tick,
+                   t->finished_tick - t->arrival_tick - t->burst_ticks);
 
         avg_turnaround += t->finished_tick - t->arrival_tick;
         avg_wait += t->finished_tick - t->arrival_tick - t->burst_ticks;
     }
 
-    printf("-----|------|---------|-------|--------|------------|-----\n");
-    printf(" AVG |      |         |       |        | %10.1f | %4.1f\n",
-           avg_turnaround / PRIORITY_TASKS,
-           avg_wait / PRIORITY_TASKS);
+    log_printf("-----|------|---------|-------|--------|------------|-----\n");
+    log_printf(" AVG |      |         |       |        | %10.1f | %4.1f\n",
+               avg_turnaround / PRIORITY_TASKS,
+               avg_wait / PRIORITY_TASKS);
 }

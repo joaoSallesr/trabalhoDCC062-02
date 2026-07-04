@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -52,8 +53,12 @@ typedef struct
 extern lottery_task_t *lottery_task_g;
 extern priority_task_t *priority_task_g;
 
-extern void lottery_tasks();
-extern void priority_tasks();
+void lottery_tasks();
+void priority_tasks();
 
-extern void lottery_log();
-extern void priority_log();
+void lottery_log();
+void priority_log();
+
+extern FILE *log_fp;
+
+void log_printf(const char *fmt, ...);
