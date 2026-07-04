@@ -59,7 +59,7 @@ static bool check_tasks(void)
     for (int a = 0; a < arrived_count; a++)
     {
         priority_task_t *t = &priority_task_g[arrived_tasks[a]];
-        log_printf("[TICK %02u]: task %d (%d*) chegou [%d ticks]\n",
+        log_printf("🟣 [TICK %02u]: {arrive} | task %2d (%2d*) [%d ticks]\n",
                    t->arrival_tick, t->id, t->priority, t->burst_ticks);
     }
 
@@ -135,7 +135,7 @@ static void run_task(int task_id)
         int turnaround = t->finished_tick - t->arrival_tick;
         int wait = turnaround - t->burst_ticks;
 
-        log_printf("[TICK %02u]: task %d (%d*) finalizou apos %d ticks -> %d [TAT], %d [WT]\n",
+        log_printf("🔴 [TICK %02u]: {finish} | task %2d (%2d*) [%d ticks] -> %d [TAT], %d [WT]\n",
                    current_tick, t->id, t->priority, t->burst_ticks, turnaround, wait);
     }
     else
@@ -160,10 +160,10 @@ static void log_tick(int task_id, int last_task_id, bool last_task_finished, boo
         priority_task_t *prev = &priority_task_g[last_task_id];
 
         if (prev->priority == t->priority)
-            log_printf("[TICK %02u]: escalonador substituiu task %d (%d*) [%d ticks restantes] por task %d (%d*) [%d ticks restantes] - [prioridades iguais]\n",
+            log_printf("🔵 [TICK %02u]: {rotate} | task %2d (%2d*) <-> task %2d (%2d*)\n",
                        current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
         else if (prev->priority > t->priority)
-            log_printf("[TICK %02u]: escalonador substituiu task %d (%d*) [%d ticks restantes] por task %d (%d*) [%d ticks restantes]\n",
+            log_printf("🟤 [TICK %02u]: {swap}   | task %2d (%2d*) --> task %2d (%2d*)\n",
                        current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
 
         return;
@@ -171,17 +171,17 @@ static void log_tick(int task_id, int last_task_id, bool last_task_finished, boo
 
     if (last_task_id == -1)
     {
-        log_printf("[TICK %02u]: escalonador iniciou task %d (%d*) [%d ticks restantes]\n",
+        log_printf("🟢 [TICK %02u]: {start}  | task %2d (%2d*) [%d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
     else if (was_unblocked)
     {
-        log_printf("[TICK %02u]: task %d (%d*) retornou [%d ticks restantes]\n",
+        log_printf("🟠 [TICK %02u]: {return} | task %2d (%2d*) [%d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
     else
     {
-        log_printf("[TICK %02u]: escalonador selecionou task %d (%d*) [%d ticks restantes]\n",
+        log_printf("🟡 [TICK %02u]: {select} | task %2d (%2d*) [%d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
 }
@@ -201,14 +201,14 @@ void priority_tasks()
     // Create all tasks with random parameters
     create_tasks();
 
-    log_printf("Running simulation:\n");
+    log_printf("Simulação escalonador - PRIORIDADE:\n");
 
     while (true)
     {
         // Check for new runnable tasks
         if (!check_tasks())
         {
-            log_printf("\nAll priority tasks finished!\n\r");
+            log_printf("\nTasks de prioridade terminaram!\n\r");
             break;
         }
 
