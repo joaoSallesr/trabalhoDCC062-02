@@ -1,13 +1,5 @@
 #include "header.h"
 
-uint32_t current_tick;
-
-void wait_ticks(int ticks)
-{
-    current_tick += ticks;
-    usleep(ticks * TICK_TO_US);
-}
-
 static void create_tasks(void)
 {
     for (int i = 0; i < PRIORITY_TASKS; i++)
@@ -43,6 +35,7 @@ static bool check_tasks(void)
             finished_tasks++;
     }
 
+    // Go through newly arrived tasks
     for (int a = 0; a < arrived_count - 1; a++)
     {
         for (int b = a + 1; b < arrived_count; b++)
@@ -59,7 +52,7 @@ static bool check_tasks(void)
     for (int a = 0; a < arrived_count; a++)
     {
         priority_task_t *t = &priority_task_g[arrived_tasks[a]];
-        log_printf("🟣 [TICK %02u]: {arrive} | task %2d (%2d*) [%d ticks]\n",
+        log_printf("🟣 [TICK %02u]: {arrive} | task %-2d (%2d*)                   | [%2d ticks]\n",
                    t->arrival_tick, t->id, t->priority, t->burst_ticks);
     }
 
@@ -135,8 +128,8 @@ static void run_task(int task_id)
         int turnaround = t->finished_tick - t->arrival_tick;
         int wait = turnaround - t->burst_ticks;
 
-        log_printf("🔴 [TICK %02u]: {finish} | task %2d (%2d*) [%d ticks] -> %d [TAT], %d [WT]\n",
-                   current_tick, t->id, t->priority, t->burst_ticks, turnaround, wait);
+        log_printf("🔴 [TICK %02u]: {finish} | task %-2d (%2d*)                   | [%2d ticks - %2d TAT - %2d WT ]\n",
+                   t->finished_tick, t->id, t->priority, t->burst_ticks, turnaround, wait);
     }
     else
     {
@@ -160,28 +153,30 @@ static void log_tick(int task_id, int last_task_id, bool last_task_finished, boo
         priority_task_t *prev = &priority_task_g[last_task_id];
 
         if (prev->priority == t->priority)
-            log_printf("🔵 [TICK %02u]: {rotate} | task %2d (%2d*) <-> task %2d (%2d*)\n",
-                       current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
+            log_printf("🔵 [TICK %02u]: {rotate} | task %-2d (%2d*) <-> task %-2d (%2d*) | [%2d ticks / %2d ticks]\n",
+                       current_tick, prev->id, prev->priority, t->id, t->priority,
+                       prev->remaining_ticks, t->remaining_ticks);
         else if (prev->priority > t->priority)
-            log_printf("🟤 [TICK %02u]: {swap}   | task %2d (%2d*) --> task %2d (%2d*)\n",
-                       current_tick, prev->id, prev->priority, prev->remaining_ticks, t->id, t->priority, t->remaining_ticks);
+            log_printf("🟤 [TICK %02u]: {swap}   | task %-2d (%2d*) --> task %-2d (%2d*) | [%2d ticks / %2d ticks]\n",
+                       current_tick, prev->id, prev->priority, t->id, t->priority,
+                       prev->remaining_ticks, t->remaining_ticks);
 
         return;
     }
 
     if (last_task_id == -1)
     {
-        log_printf("🟢 [TICK %02u]: {start}  | task %2d (%2d*) [%d ticks restantes]\n",
+        log_printf("🟢 [TICK %02u]: {start}  | task %-2d (%2d*)                   | [%2d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
     else if (was_unblocked)
     {
-        log_printf("🟠 [TICK %02u]: {return} | task %2d (%2d*) [%d ticks restantes]\n",
+        log_printf("🟠 [TICK %02u]: {return} | task %-2d (%2d*)                   | [%2d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
     else
     {
-        log_printf("🟡 [TICK %02u]: {select} | task %2d (%2d*) [%d ticks restantes]\n",
+        log_printf("🟡 [TICK %02u]: {select} | task %-2d (%2d*)                   | [%2d ticks restantes]\n",
                    current_tick, t->id, t->priority, t->remaining_ticks);
     }
 }

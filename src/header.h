@@ -15,7 +15,7 @@
 #define PRIORITY_TASKS 10
 #define QUANTUM_TICK 2
 
-#define TICKET_MAX 100
+#define TICKET_MAX 99
 #define PRIORITY_MAX 10
 #define ARRIVAL_MAX 60
 #define BURST_MAX 20
@@ -50,15 +50,18 @@ typedef struct
     task_status_t status;
 } priority_task_t;
 
-extern lottery_task_t *lottery_task_g;
-extern priority_task_t *priority_task_g;
-
 void lottery_tasks();
 void priority_tasks();
 
 void lottery_log();
 void priority_log();
 
+/* helper */
+extern lottery_task_t *lottery_task_g;
+extern priority_task_t *priority_task_g;
+
+extern uint32_t current_tick;
 extern FILE *log_fp;
 
+void wait_ticks(int ticks);
 void log_printf(const char *fmt, ...);

@@ -1,6 +1,6 @@
 CC = gcc
 FLAGS = -Wall -pedantic -lpthread
-SOURCES = src/main.c src/priority.c src/lottery.c
+SOURCES = src/main.c src/priority.c src/lottery.c src/global.c
 
 all: main
 
