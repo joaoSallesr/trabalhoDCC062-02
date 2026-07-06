@@ -29,3 +29,38 @@ void log_printf(const char *fmt, ...)
         fflush(log_fp);
     }
 }
+
+int menu(void)
+{
+    int option;
+
+    printf("=====================================\n");
+    printf("      Simulador de Escalonamento     \n");
+    printf("=====================================\n");
+    printf("1 - Prioridade\n");
+    printf("2 - Loteria\n");
+    printf("3 - Ambos\n");
+    printf("0 - Sair\n");
+    printf("-------------------------------------\n");
+
+    while (1)
+    {
+        printf("Escolha uma opção: ");
+
+        if (scanf("%d", &option) != 1)
+        {
+            while (getchar() != '\n')
+                ; // clear invalid input
+            printf("Opção inválida.\n");
+            continue;
+        }
+
+        if (option >= 0 && option <= 3)
+        {
+            printf("\n");
+            return option;
+        }
+
+        printf("Opção inválida.\n");
+    }
+}

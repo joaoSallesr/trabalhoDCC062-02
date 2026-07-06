@@ -65,3 +65,4 @@ extern FILE *log_fp;
 
 void wait_ticks(int ticks);
 void log_printf(const char *fmt, ...);
+int menu();
